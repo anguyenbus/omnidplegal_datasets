@@ -1,94 +1,64 @@
 # OmniDocBench Filter Approach
 
-## Overview
+## The Problem
 
-OmniDocBench is a multilingual document parsing benchmark containing documents in multiple languages and various document types. This document describes the approach used to extract an English-only subset suitable for document parsing evaluation.
+OmniDocBench is a large dataset used to test document parsing systems. It contains:
 
-## Problem Statement
+- Documents in many languages (English, Chinese, and others)
+- Different types of documents (academic papers, reports, textbooks, etc.)
+- Pages that reference image files
 
-The raw OmniDocBench dataset contains:
-- Multiple languages (English, Chinese, etc.)
-- Various document types (some relevant, some not)
-- Pages with missing image files
+If you want to benchmark English-only document parsing, you can't use the raw dataset directly. You need to filter out:
 
-For English-only document parsing benchmarking, we need a filtered subset containing only English documents with all referenced images present.
+1. Non-English documents
+2. Document types you don't care about
+3. Pages with broken or missing image references
 
-## Filter Criteria
+## The Solution
 
-The filter applies three sequential criteria:
+We filter the dataset using three simple rules. Each page must pass all three to be included.
 
-### 1. Language Filter
+### Rule 1: Language Check
 
-```python
-RELEVANT_LANGUAGES = {"english"}
-```
+Keep only pages marked as English. The language field might have variations like `"English"`, `"ENGLISH"`, or `" english "`, so we normalize by converting to lowercase and trimming spaces.
 
-Only pages where `page_info.page_attribute.language == "english"` are retained.
+### Rule 2: Document Type Check
 
-### 2. Document Type Filter
+Keep only specific document types that are relevant for parsing benchmarks:
 
-```python
-RELEVANT_DOC_TYPES = {
-    "academic_literature",
-    "research_report",
-    "exam_paper",
-    "colorful_textbook",
-    "book",
-    "PPT2PDF",
-}
-```
+- Academic literature (research papers, journal articles)
+- Research reports (industry reports, white papers)
+- Exam papers
+- Colorful textbooks
+- Books
+- Presentation slides (PPT converted to PDF)
 
-Only pages where `page_info.page_attribute.data_source` matches one of these types are retained.
+### Rule 3: Image Check
 
-### 3. Image Existence Filter
+Every page references an image file. We only keep pages where that image file actually exists on disk. This prevents broken links in the final dataset.
 
-Each page includes a reference to an image file (`page_info.image_path`). Only pages where the referenced image file exists on disk are retained. This prevents broken references in the filtered dataset.
+## How It Works
 
-## Filtering Algorithm
+The filtering process follows these steps:
 
-The filtering logic in [`_filter_omnidocbench_pages()`](../src/get_omni_dp_bench/downloader.py#L180) processes pages as a generator:
+1. **Download** the raw OmniDocBench dataset from HuggingFace to a temporary folder
+2. **Filter** each page through the three rules above
+3. **Collect** only the pages that pass all filters
+4. **Copy** only the images that are referenced by the filtered pages
+5. **Write** the cleaned data to the final location
+6. **Clean up** the temporary download folder
 
-```python
-def _filter_omnidocbench_pages(
-    pages: list[dict[str, Any]],
-    images_dir: Path,
-) -> Iterator[dict[str, Any]]:
-    for page in pages:
-        page_info = page.get("page_info", {})
-        attrs = page_info.get("page_attribute", {})
+## What You Get
 
-        # Language filter
-        if attrs.get("language") not in RELEVANT_LANGUAGES:
-            continue
-
-        # Document type filter
-        if attrs.get("data_source") not in RELEVANT_DOC_TYPES:
-            continue
-
-        # Image existence filter
-        img_path = page_info.get("image_path", "")
-        if img_path:
-            img_name = Path(img_path).name
-            if not (images_dir / img_name).exists():
-                continue
-
-        # Pass all filters - yield cleaned page
-        yield page_clean
-```
-
-## Output Structure
-
-After filtering, the output dataset contains:
+After filtering, your output looks like this:
 
 ```
 data/parsing/omnidocbench_english/
 ├── OmniDocBench.json    # Filtered pages (English-only)
-└── images/              # Only images referenced by filtered pages
+└── images/              # Only the images actually used
 ```
 
-## Page Schema
-
-Each filtered page maintains the original structure:
+The JSON file contains pages with this structure:
 
 ```json
 {
@@ -107,36 +77,42 @@ Each filtered page maintains the original structure:
     "page_attribute": {
       "language": "english",
       "data_source": "academic_literature",
-      "layout": "single_column",
-      "fuzzy_scan": false,
-      "watermark": false,
-      "colorful_backgroud": false
+      "layout": "single_column"
     }
-  },
-  "extra": {}
+  }
 }
 ```
 
-## Key Implementation Details
+## Key Design Choices
 
-1. **Generator Pattern**: Uses Python generators (`yield`) for memory-efficient streaming of filtered pages.
+**Memory efficiency**: The filter processes pages one at a time using Python generators, not loading everything into memory at once.
 
-2. **Graceful Degradation**: Malformed pages (missing keys, type errors) are logged and skipped rather than causing failure.
+**Graceful failure**: If a page is malformed or missing expected fields, we log a warning and skip it rather than crashing.
 
-3. **Image Copying**: After filtering, only images referenced by filtered pages are copied to the output directory, reducing storage requirements.
+**Smaller output**: By only copying the images that are actually referenced by filtered pages, we save significant disk space.
 
-4. **Manifest Tracking**: The filtered dataset's SHA-256 hash is computed and stored in `MANIFEST.yaml` for verification.
+**Verification**: A SHA-256 hash of the filtered dataset is computed and stored in `MANIFEST.yaml` so you can verify integrity later.
 
-## Statistics
+## Size Reduction
 
-Typical reduction from full OmniDocBench to English-only subset:
+The raw OmniDocBench dataset has over 100,000 pages in multiple languages. After filtering:
 
-- Raw pages: ~100K+ (all languages, all types)
-- Filtered pages: ~20K-40K (English-only, relevant types, with images)
-- Reduction: ~60-80% of original size
+- **Raw**: ~100K+ pages (all languages, all types)
+- **Filtered**: ~20K-40K pages (English-only, relevant types, with images)
+- **Reduction**: About 60-80% smaller than the original
+
+## Running the Filter
+
+```bash
+# Install and run
+uv sync --dev
+uv run get-data --datasets omnidocbench
+```
+
+The filtered dataset will be saved to `data/parsing/omnidocbench_english/`.
 
 ## References
 
 - Source dataset: [opendatalab/OmniDocBench](https://huggingface.co/datasets/opendatalab/OmniDocBench)
 - Implementation: [`src/get_omni_dp_bench/downloader.py`](../src/get_omni_dp_bench/downloader.py)
-- Constants: [`src/get_omni_dp_bench/constants.py`](../src/get_omni_dp_bench/constants.py)
+- Configuration: [`src/get_omni_dp_bench/constants.py`](../src/get_omni_dp_bench/constants.py)
