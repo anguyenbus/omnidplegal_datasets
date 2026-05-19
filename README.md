@@ -37,38 +37,28 @@ Legal document retrieval augmented generation benchmark. Manual download require
 ## Installation
 
 ```bash
-# Create virtual environment
-python -m venv env
-source env/bin/activate
-
-# Install package
-pip install -e .
-
-# Install dev dependencies
-pip install pytest pytest-cov ruff
+# Install package and dev dependencies
+uv sync --dev
 ```
 
 ## Usage
 
 ```bash
-# Activate environment
-source env/bin/activate
-
 # Download all datasets
-get-data
+uv run get-data
 
 # Download specific dataset
-get-data --datasets omnidocbench
-get-data --datasets dp_bench
+uv run get-data --datasets omnidocbench
+uv run get-data --datasets dp_bench
 
 # Force re-download (overwrite existing)
-get-data --force
+uv run get-data --force
 
 # Custom output directory
-get-data --output-dir /path/to/data
+uv run get-data --output-dir /path/to/data
 
 # Show help
-get-data --help
+uv run get-data --help
 ```
 
 ## Output Structure
@@ -135,14 +125,14 @@ Each page in `OmniDocBench.json` follows this structure:
 
 ```bash
 # Run tests
-pytest
+uv run pytest
 
 # Run tests with coverage
-pytest --cov=src/get_omni_dp_bench --cov-report=term-missing
+uv run pytest --cov=src/get_omni_dp_bench --cov-report=term-missing
 
 # Lint
-ruff check --fix
-ruff format
+uv run ruff check --fix
+uv run ruff format
 ```
 
 ## Manifest

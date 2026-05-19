@@ -203,8 +203,11 @@ def _filter_omnidocbench_pages(
             page_info: dict[str, Any] = page.get("page_info", {})
             attrs: dict[str, Any] = page_info.get("page_attribute", {})
 
-            # Skip non-English
-            if attrs.get("language") not in RELEVANT_LANGUAGES:
+            # Skip non-English (case-insensitive, whitespace trimmed)
+            lang: str | None = attrs.get("language")
+            if isinstance(lang, str):
+                lang = lang.lower().strip()
+            if lang not in RELEVANT_LANGUAGES:
                 continue
 
             # Skip non-relevant document types
