@@ -8,8 +8,6 @@ A practitioner's guide to building a custom RAG evaluation dataset in the **Lega
 
 Legal RAG Bench is an **end-to-end** RAG evaluation set. The defining feature, and the reason to imitate it specifically rather than e.g. LegalBench-RAG, is that every question is labelled with **both** the gold passage **and** a hand-written long-form answer. That dual labelling is what enables Isaacus's contribution: a hierarchical error-decomposition framework that attributes each end-to-end failure to one of hallucination, retrieval, or reasoning. (See §6 for the methodology — the format only makes sense once you understand the methodology it serves.)
 
-If your colleague asks "why not LegalBench-RAG's character-span format?", the answer is: LegalBench-RAG labels relevant text only. You can score retrieval against it, but you cannot independently score generation, so you cannot tell whether an end-to-end failure was a retrieval failure or a reasoning failure. Legal RAG Bench's dual labels solve that. (LegalBench-RAG is Pipitone & Houir Alami, ZeroEntropy, 2024, arXiv 2408.10343 — a different benchmark from a different group, frequently confused.)
-
 DeepEval, RAGAS, and similar evaluation libraries can be retrofitted to consume this format, but the format is not designed *for* them. It is designed for Isaacus's three-binary-metric error decomposition. Treat library compatibility as a downstream convenience, not a design rationale.
 
 Sources consulted: Hugging Face dataset card `isaacus/legal-rag-bench`; Isaacus blog *Introducing Legal RAG Bench* (20 Feb 2026); arXiv 2603.01710 (Butler & Butler, 2 Mar 2026).
